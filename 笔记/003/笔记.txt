@@ -1,0 +1,147 @@
+一：文件IO函数使用
+	1.read 函数的使用
+	#include <unistd.h>
+	//ssize_t write(int fd, const void *buf, size_t count); //buf的数据是不可改变的
+    ssize_t read(int fd, void *buf, size_t count);
+	从fd对应的文件中，读取count个字节的数据，存放到buf对应空间中
+	fd：要进行数据读取的fd
+	buf：要用于存储的空间（数组）
+		char 、int、char *、int *、struct 、struct*
+	count：要读取多少个字节的数据（空间有多大，就读取多大）
+	return：
+		成功：>0 实际读取多少个字节的数据
+			  =0 读取到文件的末尾
+			  
+		失败：-1
+	test1.c：从已经存储着数据的1.txt当中，把hello world！读取出来。
+	test2.c：从已经存储着结构体数据写入的struct.txt，利用对等结构体的原型，去读取出数据
+	test3.c：打开3.txt文件，先写入my name is xxx，再将数据读取出来，再打印
+		
+	2.lseek 函数的使用（调整文件内部光标）
+	（1）文件内存在着一个光标===>代表着下一个要操作的位置（read/write）
+		write：每次写入数据，都是从光标位置写入，光标会对应移动
+		read：从光标当前位置，往后读取，光标也会跟随移动
+	（2）文件每次被打开时，光标都会处于起点位置。
+	（3）光标的位置，可以被使用者，任意的调动
+		#include <sys/types.h>
+		#include <unistd.h>
+		off_t lseek(int fd, off_t offset, int whence);
+		fd：要偏移光标的对象是谁。
+		offset：偏移量	+/-n
+		whence：基准点
+			SEEK_SET：开头
+			SEEK_CUR：当前
+			SEEK_END：结尾
+		return : 当前光标距离文件头的长度（字节数）
+		
+		得到当前光标的所在位置：
+		l_ret = lseek(fd,0,SEEK_CUR);
+		
+		将光标直接移动到开头的位置：
+		l_ret = lseek(fd,0,SEEK_SET);
+		
+		得到某个文件的总长度
+		l_ret = lseek(fd,0,SEEK_END);
+	   
+		额外向后扩展空间：空洞效应（迅雷断点续传，多点下载）
+		l_ret = lseek(fd,50,SEEK_END);
+		
+	（4）close	 
+	#include <unistd.h>
+    int close(int fd);
+
+	
+	test4.c:显示一张800*480大小的bmp图片（垂直翻转）
+	test5.c：在屏幕的（200.200）的位置上，显示一张300*240大小的bmp图片
+	test6.c:图像特效的显示。（横向百叶窗、纵向百叶窗）
+		sleep(1); //1s延时
+		usleep(1000*1000 = 1s); //1us延时
+		内存映射
+	test7.c（加分项）：在屏幕的（200.200）的位置上，显示一张111*111大小的bmp图片（bmp存储对齐概念）
+	
+=======================================================================================================
+二：内存映射
+	write在操作时，必须是按照字节排列方式，扫描写入。（并且在操作LCD时，总是会多写入一些数据，浪费资源）
+	#include <sys/mman.h>
+
+    void *mmap(void *addr, size_t length, int prot, int flags,int fd, off_t offset); //申请内存
+	addr：期望内存所在地。 NULL
+	length：内存空间的长度。 	800*480*4
+	prot：内存访问的权限 PROT_READ | PROT_WRITE （bit）
+	flags：MAP_SHARED
+	fd：lcd_fd	
+	offset：0
+	return:
+		成功：申请到内存空间的首地址 int */char *
+		失败： MAP_FAILED
+
+    int munmap(void *addr, size_t length);	//释放内存
+		addr：系统分配的内存空间
+		length：内存空间的大小
+	
+==================================================================================================
+三：BMP内存对齐
+	bmp_filesize = 54 + 宽*高*3
+		111*480*3 实际大小差1440
+		（111+1）*480*3 == 实际图片大小
+		4-（(宽*bit_depth/8)%4）  == 补齐数
+		4-（111*3 %4）=3
+		
+		读取文件大小的方法：lseek-->file_size
+		char buf[file_size-54]; <==不等==>111*480*3
+			buf[331]
+			buf[332]
+			buf[333] 
+			==========刚好整行
+			buf[334]  
+			
+			
+======================================================================================================= 
+四：模块化设计（低耦合，高内聚）
+		将一份完整（多模块的代码）进行功能拆分。
+		Lcd_Init();
+		{
+			//A.open LCD
+			int lcd_fd=open("/dev/fb0",O_RDWR);
+			{
+			
+			}
+			
+			//内存映射
+			p=mmap(NULL,800*480*4,PROT_READ | PROT_WRITE,MAP_SHARED,lcd_fd,0);
+			if(p == MAP_FAILED)
+			{
+				perror("mmap error");
+				return -1;
+			}
+		}
+		
+		Lcd_Uinit()
+		{
+			//初始化的反操作
+		}
+		
+		
+		void lcd_show_point(int x,int y,int color);
+		
+		/*
+			功能描述：能够在任意起点，显示一张不大于屏幕的图片。图片可以是奇数尺寸
+			参数作用：
+			返回值作用：
+		*/
+		Lcd_Show_Bmp(start_x,start_y,w,h,show_w,show_h,bmp_pathname)
+		{
+			//1.图像显示带有缩放功能
+			//2.利用bmp_file前54个字节的文件属性，得到w+h
+		}
+		
+		work1:
+			main.c lcd.c lcd.h
+			gcc main.c lcd.c -o main 
+		黑匣子（函数）：输入什么、输出什么、内置功能
+		
+		
+	
+
+	
+	

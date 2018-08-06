@@ -1,0 +1,106 @@
+一：linux下文件IO编程 （嵌入式中第一个要写的代码）
+	“一切皆文件”：所有数据的存储/硬件的存在，都是以文件的形式体现出来。（安卓）
+		文件类型：（ls -l）
+			-	：普通文件（图片、音频、视频、文档）
+			d	：目录文件
+			l	：链接文件
+			c	：字符设备文件（硬件有关）
+			d	：块设备文件（硬件有关）：磁盘
+			b	：设备文件
+			s	：
+					管道文件
+	
+	1.如何将一头大象放进冰箱
+		打开冰箱门、把大象塞进去、关上冰箱门
+					
+	2.文件IO的操作函数（原理）（linux系统IO）	（fopen、fseek、fread、fwrite、fclose:标准IO）
+		（1）打开文件				open
+		（2）挑选合理IO位置			lseek
+		（3）数据写入到文件中		write
+		（4）数据从文件中读取出来	read
+		（5）关闭文件				close
+		
+		系统IO：指定系统专用，读写数据比较快
+		标准IO：C库通用IO，读写数据慢一点（缓冲区）		
+================================================================================================
+二：文件IO的函数解析	（设备文件 只能打开，不能创建）
+	1.open函数的使用
+	#include <sys/types.h>
+    #include <sys/stat.h>
+    #include <fcntl.h>
+    int open(const char *pathname, int flags);	
+	//给定一个文件对应的pathname，用flags对应的方式去访问它
+	pathname：要访问的文件
+	flags：访问文件的方式
+		O_RDONLY	：只读
+		O_WRONLY	：只写
+		O_RDWR		：可读可写
+	return :
+		成功：>0 	文件描述符，用于给其他IO函数使用（备注）
+		失败：-1.（将系统内的错误码置位，需要借助perror）
+	
+	test1.c:利用open打开1.txt的文件，并且往里面写入hello world！（字符串）
+	
+	2.write函数的使用
+	#include <unistd.h>
+    ssize_t write(int fd, const void *buf, size_t count);				
+	从buf中，提取count个字节数据，写入fd文件描述符所对应的文件中去
+	fd：要写入数据的fd。（open的返回值）
+	buf：存储着即将要写入的数据	void *（形参）==>形参变量的类型可以是任意
+		char、char *、int、int *、float 、float *、strtct、struct *
+	count：期望从buf中，拿出多少数据写入
+		strlen ==>求实际数据的长度 char buf[20]={15} ==>15	（处理字符串）
+		sizeof ==>求实际空间的长度/大小	char buf[20] ==>20  int buf[20]==>80 （用于长度固定）
+	return：实际写入了多少数据
+	
+	test2.c:利用open+write，实现3次数据的写入，并且要求每次数据的长度都不一样。
+	test3.c:利用open+write，去写入int ，struct的数据。
+		设计一个学生信息结构体：包含姓名，学号，年龄
+		创建出张三，李四两个学生，填充对应的信息后，将数据写入到2.txt中
+	
+======================================================================================================
+三：linux下输出设备的操作 （LCD）
+	1.LCD的参数
+		分辨率：像素点的个数 ==>宽*高（800*480）
+		像素点：最小的颜色控制的单位（内含三原色 + 透明度）
+				==>ARGB（4个LED灯），通过给4个LED不同的电流，发光亮度不一样，4个光混合形成看到的颜色
+					A ：一个字节，0-255
+					R ：一个字节，0-255
+					G ：一个字节，0-255
+					B ：一个字节，0-255
+	
+	2.如何给LED灯施加电压值/电流值？
+		驱动（1亮  0灭） ===>linux下，一切皆文件
+				
+	test4.c：利用open+write，操作LCD的文件（/dev/fb0），出现满屏的绿光。
+	test5.c：利用open+write，操作LCD的文件（/dev/fb0），水平彩虹（6个颜色）。
+	test6.c：利用open+write，操作LCD的文件（/dev/fb0），纵向彩虹（8个颜色）。
+	test7.c：弧线彩虹（加分项）
+				
+	3.LCD显示图片的原理
+		（1）操作LCD出现色彩。
+		（2）24bit的RGB转32bit的ARGB
+		（3）LCD显示图像的代码流程
+			A.open LCD
+			B.open BMP_file
+			C.lseek （跳过54个字节的头信息） lseek(bmp_fd,54,SEEK_SET)
+			D.read （宽*高*3的RGB数据）	read(bmp_fd,buf,sizeof(buf));
+			E.准备好color_buf（24bit的RGB 转 32bit的ARGB）
+			F.将color_buf write LCD对应的文件
+			G.将LCD与BMP都给关闭了
+			
+	4.图片文件的格式
+		/dev/fb0 文件大小===>宽*高*4（ARGB色彩空间分布） ===>char buf[800*480*4] ===>1536000
+		jpg:大小是不可估计的，压缩（最终大小，取决于压缩算法+图像的色彩空间分布）
+		png:大小是不可估计的，压缩。只有经过解压缩后，方能得到RGB原始数据
+			jpg和png解压后的数据格式为BMP格式。
+		bmp：800*480*3=1152000（RGB） +54（文件属性）=1152054，纯粹的RGB数据 
+			内存对齐：保证长度必须是4的倍数
+				1152000 ！= 800*480 / 480*800 / xxx*xxx
+				
+		多媒体文件格式：（图片、音频mp3，、视频avi，mp4，xxx）
+	
+	
+	
+	
+	

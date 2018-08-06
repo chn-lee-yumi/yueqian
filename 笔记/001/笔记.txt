@@ -1,0 +1,126 @@
+自我介绍：
+	许泽祥		2027300864
+	
+=======================================================================
+智能家居（基于嵌入式平台设计）
+一：开发环境的搭建
+		（1）交叉开发模式（手机）
+			PC平台：linux操作系统
+				a.打开vmware
+					将ubuntu标准教学系统进行解压（D/E）
+					找到ubuntu12.04.vmx
+				b.选中ubuntu12.04，点击播放虚拟机，进入linux操作系统（ubuntu）
+				c.启动命令行工具（终端）
+					CTRL + ALT + T
+				d.常规系统操作（linux下的命令模式）
+					运行可执行文件、基本的文件创建、销毁、....
+				
+			嵌入式设备平台：开发板
+			
+二：linux常规命令的使用
+	1.ls 	展示某个路径下的文件有哪一些（刷新）
+	ls [路径名] [辅助选项]
+		ls	显示当前路径下的文件 （ls .）
+		ls -l	显示所有的属性
+			d rwx r-sr-x	文件类型 + 文件操作权限
+				d：目录文件（文件夹）
+				-：普通文件
+		ls -a	显示所有文件（包括隐藏文件）
+			.filename （隐藏的文件） .和..是属于特殊的路径
+		ls -la
+		
+	2.cd	修改工作路径
+			gec@ubuntu: /  $  （当前所在地的路径）
+		何为路径? ===>文件在磁盘上的存储结构
+				相对路径：cd / && cd home && cd gec （永远都只从脚下开始搜索）
+				绝对路径：cd /home/gec(永远都只从起点开始搜索)
+			/	根目录,windows上的C/D/E/F
+			.	当前目录
+			..	上一级目录
+			~	家目录（/home/gec）
+		cd 要去到的路径
+		
+	3.pwd	查看当前所在的路径
+		pwd
+		
+	4.touch、rm、mkdir	文件/目录的创建、删除 （常规都在~路径下去操作）
+		touch	filename1  	//创建空白文件
+		rm	filename1		//删除文件
+		mkdir	dirname		//创建空白目录
+		rm -rf dirname		//删除目录
+		
+	5.gedit		文件编辑
+		gedit	filename
+		
+	6.gcc		源文件的编译（集成开发环境VC++、vs）
+		arm-linux-gcc filename.c -o filename		（ARM：嵌入式）
+		gcc filename.c -o filename					（x86：PC）
+			 源文件			可执行文件
+			 
+	7.可执行代码的运行
+		可执行文件名的路径
+		./可执行文件名
+	
+	8.cp、mv	文件复制（复制+粘贴）、移动（剪切+粘贴）
+		cp 源文件名	目的地
+			cp 1.c 1
+			cp 1 2 -rf	
+			cp 3.c 3/4.c
+			cp 3 6 -rf
+
+		mv 源文件名	目的地
+			mv 1.c 1
+			mv 2.c 1.c	（重命名）
+			mv 2 3
+		
+	9.cat 	查看文件的内容
+		cat filename （只能看，不能动）
+	
+	10.which 查看命令是否存在
+		which 要查看的命令
+			which ls
+			which arm-linux-gcc
+	
+	11.man 帮助手册的使用
+		man 要查看帮助的命令/函数名
+			1   Executable programs or shell commands
+			2   System calls (functions provided by the kernel)
+			3   Library calls (functions within program libraries)
+			
+		man -f 命令/函数
+		man 章节数	命令/函数
+	12.linux命令使用技巧
+		*	：通配符（所有）
+			ls *.c
+			ls *ll*
+			
+		tab键 ：自动补齐搜索功能
+			
+	13.chmod 文件操作权限的修改		
+		rwx 		r-- 		r-- （BCD码 8421）
+		当前用户		用户组		管理员
+		chmod 权限数字表示	文件名
+		
+		chmod 777 filename
+	test1：熟悉各个命令，写一个自认为C语言最难的程序，并且编译运行
+	
+========================================================================================================
+三：嵌入式设备（开发板）的使用
+	（1）启动终端控制软件：SecureCRT.rar
+		快速链接--》设置见图
+	（2）usb转串口驱动的使用
+			黑色：E:\广工实训\工具包\USB转串口万能驱动\PL2303_Prolific_DriverInstaller_v1210.exe
+			蓝色：E:\广工实训\工具包\USB转串口万能驱动\CH341SER_64bit
+	（3）设置好CRT之后，上电，能够看到有启动信息输出。
+		[root@GEC210 /]	==>板载移植了linux操作系统在上面（命令通用、没有编译器）
+			
+			
+	（4）文件的下载（CRT内操作）
+			rz -y ==>弹出文件选择框
+			
+========================================================================================================
+四：共享文件夹 （让windows与linux共同看到彼此的数据）
+	点击player--》管理--》虚拟机设置--》选项--》共享文件夹--》总是启动---》点击添加
+		主机路径：windows的路径	（笔记）
+		名称：linux下的路径		（share） /mnt/hgfs/share
+			

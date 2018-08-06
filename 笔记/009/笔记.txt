@@ -1,0 +1,101 @@
+一：zigbee的协调器启动串口功能
+	（1）配置串口（波特率、流控、数据位、校验位） （MT_UART.C + MT_UART.H）
+		void MT_UartInit ()
+		{
+			波特率修改：
+				uartConfig.baudRate      = MT_UART_DEFAULT_BAUDRATE;
+					改为：HAL_UART_BR_115200
+					
+			流控修改：
+				#define MT_UART_DEFAULT_OVERFLOW       FALSE
+				
+			修改串口回调函数
+				注释以下代码  
+				#if defined (ZTOOL_P1) || defined (ZTOOL_P2)
+				  uartConfig.callBackFunc         = MT_UartProcessZToolData;
+				#elif defined (ZAPP_P1) || defined (ZAPP_P2)
+				  uartConfig.callBackFunc         = MT_UartProcessZAppData;
+				#else
+				  uartConfig.callBackFunc         = NULL;
+				#endif
+				添加新的以下代码
+			#if defined (ZTOOL_P1) || defined (ZTOOL_P2)
+			  uartConfig.callBackFunc         = uart_recv;
+			#elif defined (ZAPP_P1) || defined (ZAPP_P2)
+			  uartConfig.callBackFunc         = uart_recv;
+			#else
+			  uartConfig.callBackFunc         = NULL;
+			#endif 
+		}
+		
+	（2）声明自定义的串口接收函数
+		A.在sampleapp.c的最后一行上，实现自定义的函数
+		void uart_recv ( uint8 port, uint8 event )	//当串口发生事件时，就能被调用的函数
+		{
+			uint16 data_len;
+			uint8 data[128];
+		  //留空
+		  //判断串口是否发生了可读数据的事件
+		  if(event & (HAL_UART_RX_FULL | HAL_UART_RX_ABOUT_FULL | HAL_UART_RX_TIMEOUT))
+		  {
+				data_len=Hal_UART_RxBufLen(0);
+				HalUARTRead(0,data,data_len);
+				HalUARTWrite(0,data,data_len);
+				
+				//无线传输（终端）
+				if ( AF_DataRequest( &SampleApp_Periodic_DstAddr, 
+									 &SampleApp_epDesc,
+							   SAMPLEAPP_CTL_CLUSTERID,
+							   data_len,
+							   data,
+							   &SampleApp_TransID,
+							   AF_DISCV_ROUTE,
+							   AF_DEFAULT_RADIUS ) == afStatus_SUCCESS )
+				{
+				}
+				else
+				{
+				  // Error occurred in request to send.
+				}
+		}
+		  }
+		}
+		
+		B.对外声明uart_recv的原型是什么？
+			sampleapp.h添加以下声明
+			extern void uart_recv ( uint8 port, uint8 event );
+			
+	（3）使能串口
+		在SampleApp_Init函数内，添加
+		MT_UartInit ();
+		MT_UartRegisterTaskID(task_id);
+		
+	（4）调用串口读写功能
+		uint16 HalUARTRead(uint8 port, uint8 *buf, uint16 len)	//读取串口中的数据
+		uint16 HalUARTWrite(uint8 port, uint8 *buf, uint16 len)	
+		uint16 Hal_UART_RxBufLen( uint8 port )	//求出串口可接收数据的长度
+			port：串口号（0）
+			buf：要接收/发送的数据
+			len：长度
+			
+	（5）接线，安装串口驱动，启动串口调试助手
+	
+	（6）修改协议栈的符号定义
+		右键工程名--》options--》c/c++ --》preprocess--》define symbol
+			将除了ZTOOL_P1之外的符号都注释掉，前面+x注释
+			
+	test2.c：通过串口调试助手，发出数据给协调器。（字符型 '1'）
+			协调器再转发给终端，终端根据指令控制LED灯
+			(本地测试：协调器点灯)
+			
+=========================================================================================
+二：开发板串口控制协调器
+	test3.c:
+	
+	pro_over:完成所有子功能的整合
+		图库、音乐、视频、家电
+		
+		明天早上进行验收答辩：
+			验收：整体效果的检查，功能 + UI （9.00-11.00）
+			答辩：准备好一个PPT，3-5分钟演讲。（项目功能的演示 + 介绍 + 问题 + 解决方法）
+				（11.00-12.30）

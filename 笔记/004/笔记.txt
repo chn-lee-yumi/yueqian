@@ -1,0 +1,82 @@
+一：输入设备的开发
+	1.输入子系统 （设备文件 /dev/event0）
+		linux下，将一些常规使用输入设备（鼠标、键盘、触摸屏）统一进行管理，得到一套开发标准。
+		
+		cat /dev/event0 ==>while + 阻塞 ===>点击就有数据
+	2.输入子系统的框架
+		见图：
+		将任何输入设备的动作，都称之为事件
+		
+	3.头文件所在路径
+		/usr/include/linux/input.h
+		编译时，指定头文件/库文件的路径
+		gcc hello.c lcd.c ts.c -o hello -I./include -L./lib
+			-I:头文件在哪里可以找到
+			-L:库文件在哪里可以找到
+				多文件编译-->
+				
+	4.event数据解析
+		struct input_event {
+			struct timeval time; //事件产生的时间
+			__u16 type; 	//输入设备的类型
+			__u16 code;		//输入设备下的哪一种动作
+			__s32 value;	//动作对应的值/状态
+		};
+		struct timeval {
+               time_t      tv_sec;     /* 秒*/
+               suseconds_t tv_usec;    /* 微妙*/
+           };
+
+		
+		快速点击下，产生数据如下
+		type = 0x3    code = 0x0    value = 488
+		type = 0x3    code = 0x1    value = 180
+		type = 0x3    code = 0x18   value = 255
+		type = 0x1    code = 0x14a  value = 1
+		type = 0x0    code = 0x0    value = 0		//一个事件结束了
+		
+		type = 0x3    code = 0x18   value = 0
+		type = 0x1    code = 0x14a  value = 0
+		type = 0x0    code = 0x0    value = 0
+		
+		（1）解析出哪一种输入设备产生的数据（type） EV_设备类型结尾
+			#define EV_SYN		0x00	同步信号
+			#define EV_KEY		0x01	键盘
+			#define EV_REL		0x02	相对坐标（鼠标）
+			#define EV_ABS		0x03	绝对坐标（触摸屏）
+			
+		（2）解析输入设备的哪一种动作	设备类型_动作类型
+			#define ABS_X		0x00
+				value == X坐标值
+			#define ABS_Y		0x01
+				value == Y坐标值
+			#define ABS_PRESSURE	0x18
+				value > 0 :手按下屏幕上
+				value == 0 ：手松开了屏幕
+			
+		test2.c：根据输入子系统的文件，去读取触摸屏的坐标值（等待手指弹开）
+			X=xxx
+			Y=xxx
+			
+		test3.c:点击刷图（拼图游戏）
+			把个人照，拆成9份。每次点击中照片的区域，就显示出来。
+			（1）坐标范围
+			（2）点击刷图时，必须是手指弹开后，才能工作
+			
+===================================================================================================
+二：触摸屏应用
+	（1）快速点击
+	（2）长按与短按
+		手指从按下--松开的时间值：
+			struct timeval time; //根据时间值做判断
+			
+	（3）滑动（游戏：水果忍者、王者、飞车、2048、别踩白块儿）
+		刚按下时的坐标为起点坐标：
+		刚弹开时最后一个坐标为终点坐标：
+		
+		test4.c：根据触摸屏滑动原理，编程实现滑动的方向判断。（12个方向，8个方向）
+		work1.c：
+			两个游戏选一个
+			4*4键盘
+			
+	（4）多点触碰（不讨论）

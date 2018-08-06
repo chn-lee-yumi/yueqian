@@ -1,0 +1,64 @@
+一：linux下多任务编程
+	（1）多进程：多个APP之间同时运行(父亲挂了，儿子会有人收养)
+	（1）多线程：单个APP内的多任务（函数:回调函数）
+		A.线程创建函数
+		#include <pthread.h>
+		int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                           void *(*start_routine) (void *), void *arg);
+			thread:线程的名字
+			attr:线程的属性(是否进行控制、设定优先级)
+			start_routine:线程的处理函数（人生目标）
+			arg:线程处理函数的参数
+			return:
+				0：  成功
+				！0: 失败
+			
+		A.1：多线程创建过程（生孩子）
+			（1）给孩子准备一个名字
+				pthread_t child_name;
+				
+			（2）给孩子制定一个人生目标（函数）
+				void * child_fun(void *arg)
+				{
+					//按部就班1
+					//
+				}
+			
+			（3）孩子的抚养权、权力
+				NULL
+			
+			（4）人生目标的外力支援
+				NULL
+				
+			（5）生下孩子
+				pthread_create(&child_name,NULL,child_fun,NULL);
+				
+			test1.c:在两个while + 线程 == 同时运行
+				常规的函数库（c可执行代码的集合）都是会在编译时，默认链接
+					-lc -lxxx
+				少量的更新库/制作库，需要手动的链接。
+					gcc filename.c -o filename -lpthread
+			思考：
+				（1）创建线程的人，挂了，线程还在不在？
+			
+		B.线程控制函数
+		//死亡函数
+		pthread_cancel(pthread_t thread):指定一条线程死亡
+		void pthread_exit(void *retval):调用者自杀，并且可以发送给一个人遗言
+				pthread_exit("123");	//错误检测
+		//等待线程的死亡
+		int pthread_join(pthread_t thread, void **retval);
+			thread：等待是哪一条线程
+			retval：死掉的线程的遗言是什么
+			char *c;
+			pthread_join(thread,&c);
+			
+		test2.c:创建大于3条的线程，结合线程控制函数，决定他们生死
+		test3.c：（检查）
+			任务1：播放图片的任务（广告）
+			任务2：获取触摸屏的坐标。
+				滑动到上方，停止自动播放（手动播放）
+				滑动到左方，手动播放上一张
+				滑动到右方，手动播放下一张
+				滑动到下方，继续自动播放
+	

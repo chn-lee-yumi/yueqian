@@ -1,0 +1,89 @@
+一:音视频播放
+	1.音视频播放
+		见图
+		
+	2.查找madplay/mplayer
+		which
+
+	3.播放音视频
+		madplay 1.mp3 //播放音频
+		mplayer mv.mp4 //播放视频
+		
+		声卡驱动没有加载：audio: /dev/dsp: No such file or directory
+			snd-soc-wm8960.ko
+			snd-soc-gec210-wm8960.ko 
+			将两个驱动下载到板子上，加载驱动即可
+				insmod snd-soc-wm8960.ko
+				insmod snd-soc-gec210-wm8960.ko
+	4.mplayer改良（视频不能播放）
+		madplay的复制品--->找出mplayer所在的位置 -->/bin/mplayer
+		cp mplayer /bin
+=============================================================================
+二：如何将命令行运行的可执行程序，编写到c代码中
+	（1）嵌入式设备一般只有一个终端（用于跟用户交互）
+		有且只能有一个前台程序，可以借助&符号实现程序后台运行
+			===>查看后台程序（进程）
+		
+	（2）代码内调用可执行程序
+	#include <stdlib.h>
+    int system(const char *command);
+		command：一条可执行命令(字符串)
+	
+		system("madplay 1.mp3 &");
+		system("mplayer mv.mp4 &");
+三：播放器的控制（暂停、继续、上一首、下一首）
+	kill/killall （信号发送）	
+		kill 要发送的信号 接收信号的进程ID
+			（kill -l 36种信号）
+		ctrl + c ===>终止信号（前台程序）	
+		
+		killall mplayer			//结束
+		killall -CONT mplayer	//继续
+		killall -STOP mplayer	//暂停
+		
+		killall mplayer		//上一首（音乐列表、视频列表）
+		system("mplayer 2.mp4 & ");
+			如何动态形成字符串：sprintf
+				静态：提前记忆所有的文件名
+				动态：检查某一个路径下所有的文件名
+		
+		test2.c：在代码里面实现对音乐、视频的控制。
+				音乐播放10s，暂停2s，继续20s，结束
+				视频播放10s，暂停2s，继续20s，结束
+				
+		killall -STOP madplay 1.mp3 	
+=============================================================================
+四：目录检索（文件列表 + 文件匹配）
+	目录：用于存储文件的结构
+	
+	（1）目录相关操作函数
+	#include <sys/types.h>
+    #include <dirent.h>
+    DIR *opendir(const char *name);
+		name:要打开的目录路径
+		return：目录指针
+			
+		
+	#include <dirent.h>
+	//目前返回值的空间是已经存在的？
+    struct dirent *readdir(DIR *dirp);
+	return：返回目录当中的文件信息
+	struct dirent {
+        ino_t          d_ino;       /* inode number */
+        off_t          d_off;       /* offset to the next dirent */
+        unsigned short d_reclen;    /* length of this record */
+        unsigned char  d_type;      /* type of file; not supported
+                                              by all file system types */
+		char 	d_name[256]; /* filename */
+         };
+
+	test2.c:指定一个目录，要求从目录中，解析出所有的bmp，mp3,mp4文件（匹配）
+	test3.c：实现触摸屏点击屏幕，能够播放、暂停、继续、上下一首音乐
+		strcpy、strstr、strcmp
+		
+=============================================================================
+拓展：U盘挂载（将U盘编程系统内的一部分）
+	1.准备好U盘（FAT）
+	2.将U盘插入开发板
+	3.在U盘特定路径下，可以看到自己的文件数据
+		/mnt/udisk -->将需要下载的文件，拷贝到自己的磁盘上面

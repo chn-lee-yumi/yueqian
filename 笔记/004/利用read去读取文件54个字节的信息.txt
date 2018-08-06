@@ -1,0 +1,34 @@
+	uint8_t buf[54]={0};
+
+	//1.只读打开文件
+	bmp_fd=open(bmp_path,O_RDONLY);
+	if(bmp_fd < 0)
+	{
+		perror("open bmp fail");
+		return NULL;
+	}
+	
+	//2.获取图片信息
+	read_fd=read(bmp_fd,buf,54);
+	if(read_fd < 0)
+	{
+		perror("read bmp_head_info fail");
+		return NULL;
+	}
+	
+	//宽度
+	bmp_w =buf[18];
+	bmp_w |=buf[19]<<8;
+	RGB_buf->w = bmp_w;
+	printf("bmp_width=%d\r\n",bmp_w);
+	
+	//高度
+	bmp_h =buf[22];
+	bmp_h|=buf[23]<<8;
+	RGB_buf->h = bmp_h;
+	printf("bmp_height=%d\r\n",bmp_h);	
+	
+	//位深
+	bmp_type =buf[28];
+	bmp_type|=buf[29]<<8;
+	printf("bmp_type=%d\r\n",bmp_type);	

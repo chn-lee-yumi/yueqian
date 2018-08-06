@@ -1,0 +1,267 @@
+一：zigbee开发环境安装
+	（1）安装zigbee集成开发环境（IAR）
+		D:\广工实训\zigbee资料\开发环境IAR EW8051-8.1带注册工具\IAR EW8051 V8.1
+	（2）zigbee协议栈
+		TI ZStack-CC2530-2.3.0-1.4.0.exe	
+		
+=========================================================================================
+二：zigbee开发
+	（1）ZIGBEE的组成(cc2530/2540芯片型号 -->cc2630/2640)
+		增强型C51核心 	+ RF无线电
+		
+	（2）zigbee的开发方式
+		裸机开发：完全不带操作系统的设计
+		协议栈/微型操作系统：TI公司提供一套代码的集合
+	
+	（3）cc2530程序的下载
+		A.将USB+CCDEBUG下载器，插入到电脑上
+		B.驱动更新方法
+			!SmartRF04DD --》右键更新驱动--》浏览计算机查找驱动--》从计算机列表列表中查找--》下一步，从磁盘安装
+			--》浏览--》路径选择在zigbee资料中的CCdebug驱动
+		C.如果驱动安装后，接线接线好，点击下载出错，按下CCdebug的复位键
+		D.程序下载后，进去调试界面，点击GO，x掉。以后每次上电，都会自动运行程序
+		
+	（3）协议栈工作流程分析（得到，sampleAPP.c主要操作的位置）
+			C:\Texas Instruments\ZStack-CC2530-2.3.0-1.4.0\Projects\zstack\代码例子
+			C:\Texas Instruments\ZStack-CC2530-2.3.0-1.4.0\Projects\zstack\Samples\SampleApp\CC2530DB\SampleApp.eww
+				APP:应用程序位置，改动位置。
+				HAL：硬件驱动程序
+				OSAL：操作系统的代码
+				ZMAIN：主函数功能代码
+				
+		A.协议栈中main函数的主要任务 
+			// Turn off interrupts
+			osal_int_disable( INTS_ALL );
+			// Initialization for board related stuff such as LEDs
+			HAL_BOARD_INIT();
+			// Make sure supply voltage is high enough to run
+			zmain_vdd_check();
+			// Initialize board I/O
+			InitBoard( OB_COLD );
+			// Initialze HAL drivers
+			HalDriverInit();
+			//操作系统的初始化（重点1：软件部分）
+			osal_init_system();
+				{
+				// Initialize the Memory Allocation System
+				osal_mem_init();
+
+				// Initialize the message queue
+				osal_qHead = NULL;
+
+				// Initialize the timers
+				osalTimerInit();
+
+				// Initialize the Power Management System
+				osal_pwrmgr_init();
+				  
+				
+				//初始化系统任务（重点2：初始化9个任务：taskID、tasksEvents）
+				osalInitTasks();
+					{
+						SampleApp_Init( taskID );
+					}
+				}
+				
+			/* If WDT is used, this is a good place to enable it. */  
+			WatchDogEnable( WDTIMX );   //看门狗，防止CPU执行代码的时候，跑飞
+			
+			//启动操作系统
+			osal_start_system();	（重点3：）
+				{
+					for(;;) //死循环
+					{
+						do {
+							if (tasksEvents[idx])  //不断检查哪个任务可以去执行
+							{
+								break;
+							}
+						} while (++idx < tasksCnt); //idx对应着九个任务中的其中一个下标
+						
+						uint16 events;	//某一个任务所触发的事件（原因）
+						halIntState_t intState;
+
+						HAL_ENTER_CRITICAL_SECTION(intState);
+						events = tasksEvents[idx];
+						tasksEvents[idx] = 0;  // Clear the Events for this task.
+						HAL_EXIT_CRITICAL_SECTION(intState);
+
+						/*九大任务函数执行的位置*/
+						events = (tasksArr[idx])( idx, events );
+						//tasksArr数组内存放的全部是函数。执行代码的位置
+						  
+						HAL_ENTER_CRITICAL_SECTION(intState);
+						tasksEvents[idx] |= events;  // Add back unprocessed events to the current task.
+						HAL_EXIT_CRITICAL_SECTION(intState);
+					}
+				}
+				
+		（4）sampleAPP.C的代码分析
+			SampleApp_Init()	//用户任务的初始化
+			{
+				//网络通信模式的初始化
+				广播：QQ群发消息给每一个好友
+				组播：QQ群、QQ讨论组
+				点播：只跟一个对象聊天
+				
+				注册天线功能
+				afRegister( &SampleApp_epDesc );
+			}
+			
+			SampleApp_ProcessEvent()	//网络通信相关处理
+			{
+				events
+			}
+			
+		任务1：了解SampleApp_ProcessEvent当中的处理流程
+		任务2：开启代码跟踪位置。
+			hal/target/cc2530/driver/hal_led.c
+				HalLedInit();
+				HalLedSet (uint8 leds, uint8 mode);
+				
+=====================================================================================
+三.zigbee网络通信流程
+	（1）网络形成（身份认知）	
+			协调器：coord	：组建网络（有且只有一个）
+			路由：router	：用于扩张网络 + 数据的转发
+			终端：enddevice	：只能加入网络 + 收发数据
+			
+			A.协调器组网
+				怎样表示网络组建成功
+			B.节点加入已有的网络
+				怎么知道可以加入哪个网络，怎么表示加入网络成功？
+				
+		（2）SampleApp_ProcessEvent处理流程
+		{
+			if ( events & SYS_EVENT_MSG ) //系统消息事件（一级事件）
+			{
+				switch ( MSGpkt->hdr.event ) //二级事件的判断
+				{
+					case KEY_CHANGE:	//按键按下
+					case AF_INCOMING_MSG_CMD:	//接收到某个节点发来的网络消息
+					case ZDO_STATE_CHANGE:	//设备网络变更（网络从无到有）
+						HalLedSet (HAL_LED_1,HAL_LED_MODE_ON);
+						协调器：发起组网
+						节点：加入到已有的网络中
+				}
+			}
+		}
+		
+		（3）PAN ID的修改
+			tools/f8wconfig.cfg/通用配置文件/58行
+				-DZDAPP_CONFIG_PAN_ID=0xFFFF 统一改为学号
+					微电子		0xxxxx
+					电子材料	0xxxxx
+					
+			test1：验证协调器是否组网成功（单个zigbee）
+				点灯测试
+			test2：验证终端是否加入网络成功（单个zigbee）
+				点灯测试
+			test3：验证协调器组网成功		（两个zigbee）
+				   验证终端是否加入网络成功
+
+=======================================================================================
+四.网络数据的通信
+	将协议栈的代码，复制为两份代码。
+		coord
+		enddevice
+		
+	（1）在协议栈中，每个任务都不能一直占用CPU，快进快出。
+	（2）如何在我们需要CPU的时候，可以让CPU为我们所用？
+			周期性的抢占CPU ===>
+				A.隔一段时间（5S），触发一个唤醒CPU的event（sampleAPP）
+					osal_start_timerEx( SampleApp_TaskID,	//任务ID
+                              SAMPLEAPP_SEND_PERIODIC_MSG_EVT,	//发出的唤醒event
+                              SAMPLEAPP_SEND_PERIODIC_MSG_TIMEOUT );	//间隔的时间
+							  
+				B.cpu进去SampleApp_ProcessEvent（308行）
+				if ( events & SAMPLEAPP_SEND_PERIODIC_MSG_EVT )
+				{ 
+					//发生事件后，处理任务（无线数据的发送）
+					SampleApp_SendPeriodicMessage();
+					
+				
+					//必须在同一个任务处理中，再次启动定时发送同一个事件的函数
+					osal_start_timerEx( SampleApp_TaskID, SAMPLEAPP_SEND_PERIODIC_MSG_EVT,
+					(SAMPLEAPP_SEND_PERIODIC_MSG_TIMEOUT + (osal_rand() & 0x00FF)) );
+				 
+					return (events ^ SAMPLEAPP_SEND_PERIODIC_MSG_EVT);
+				}
+				
+				test4：了解AF_DataRequest的作用和参数的介绍
+				
+	（3）网络数据的发送函数
+		SampleApp_SendPeriodicMessage();
+			-->AF_DataRequest
+	（4）网络数据的接收函数
+		SampleApp_MessageMSGCB( MSGpkt );
+		
+		test5：（检查）
+			协调器组网成功，亮LED1	（1）
+			终端加入网络成功,亮LED2		（2）
+			协调器发送数据成功，亮LED2	（5s之后3）
+			
+				终端灯状态：LED1灭 LED2亮
+			终端接收数据成功,亮LED1		（5s之后4）//屏蔽终端协议栈中，自动发送功能
+========================================================================================
+五：数据的发送	AF_DataRequest（控制灯的指令）(协调器)
+	uint8 ctl_buf[2];
+		//ctl_buf[0]:led1	,1亮0灭
+		//ctl_buf[1]:led2   ,1亮0灭
+		ctl_buf[0]=0;
+		ctl_buf[1]=0;
+	AF_DataRequest( &SampleApp_Periodic_DstAddr, 	//接收方的地址（广播）不改变
+					&SampleApp_epDesc,				//自身的信息	不改变
+                    SAMPLEAPP_CTL_CLUSTERID,			//数据的描述信息	改变
+                    2,									//数据长度			改变
+                    ctl_buf,							//数据 uint8 *buf	改变
+                    &SampleApp_TransID,
+                    AF_DISCV_ROUTE,
+                    AF_DEFAULT_RADIUS ) == afStatus_SUCCESS )
+	
+	
+六：数据的接收（终端）
+void SampleApp_MessageMSGCB( afIncomingMSGPacket_t *pkt )
+{
+  uint16 flashTime;
+
+  switch ( pkt->clusterId ) //判断数据描述信息，是不是自己需要的信息
+  {
+    case SAMPLEAPP_PERIODIC_CLUSTERID:	//事实上就是个宏值
+      //处理任务
+      break;
+
+	case SAMPLEAPP_CTL_CLUSTERID:	//家电控制指令
+		if(pkt->cmd.Data[0] == 1)
+			HalLedSet (HAL_LED_1,HAL_LED_MODE_ON);
+		else if(pkt->cmd.Data[0] == 0)
+			HalLedSet (HAL_LED_1,HAL_LED_MODE_OFF);	
+		else if(pkt->cmd.Data[1] == 0)
+			HalLedSet (HAL_LED_2,HAL_LED_MODE_ON);
+		else if(pkt->cmd.Data[1] == 1)
+			HalLedSet (HAL_LED_2,HAL_LED_MODE_OFF);
+		//处理任务
+		break;
+}
+
+	pkt原型==》
+		typedef struct
+		{
+			afMSGCommandFormat_t cmd; //数据
+		} afIncomingMSGPacket_t;
+		typedef struct
+		{
+		  uint16 DataLength;    //数据长度
+		  byte  *Data;			//数据
+		} afMSGCommandFormat_t;
+		
+	//完成一次数据传输的要求：发出的CID  == 接收判断的CID
+	//提前将需要用到的CID的宏都给定义出来（发送方与接收方都要添加）	
+		#define SAMPLEAPP_CTL_CLUSTERID 3  
+		#define SAMPLEAPP_DHT11_CLUSTERID 4  
+		
+	test1:自己定义传输用到的CID和数据。（控制数据每次修改，都得重新下载程序到zigbee上面）
+		协调器：完成控灯指令的发送
+		终端：根据控制指令对LED进行控制
+			[0]:led1	,1亮0灭
+			[1]:led2    ,1亮0灭

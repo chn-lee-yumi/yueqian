@@ -1,0 +1,105 @@
+智能家居：
+	家电：无线LED控制（zigbee）
+	环境监测：温湿度监测（zigbee）
+	安防功能：摄像头
+	音视频功能：
+	图库功能：
+	
+项目流程图（参考手机/平板为例）：
+	（1）开机动画：login();
+	（2）进入桌面操作系统：show_bmp("menu.bmp");
+	while(1)
+	{
+		（3）选择子功能运行：
+			ts_get_xy();
+			判断落点区域
+			if(1)
+				show_photo();
+				
+			else if(2)
+				show_video();
+			.....
+	}
+	
+	（4）图库子功能
+		A.刷新子功能页面		show_bmp();
+		B.从触摸屏中得到数据
+		while(1)
+		{
+			选择子功能运行：
+			ts_get_xy();
+			判断落点区域
+			if(1)
+				show_photo();
+				
+			else if(2)
+				show_video();
+			.....
+			else 
+				break;
+		}
+		C.更新上一级界面
+		
+===============================================================================================
+一：摄像头开发
+	1.摄像头类型/组合
+		网络摄像头
+		USB摄像头
+		CMOS摄像头
+		
+	2.摄像头在linux的开发 ===>规范（V4L2 ：video for linux 2）
+		画面格式：bmp、jpeg（存储），YUYV、YUV420（编解码，实时传输）
+	
+	3.代码分析
+		（1）定义出相应功能结构体
+		（2）get/set 
+		ioctl(fd,功能操作,要设置/获取的结构体变量);
+			
+		（3）画面的输出格式：
+			YUYV转RGB24
+			
+	4.代码调用流程
+		（1）初始化摄像头
+			linux_v4l2_device_init();
+			
+		（2）让摄像头开始捕捉画面
+			linux_v4l2_start_capturing();
+			
+		while(1)
+		{			
+		（3）从摄像头的缓冲区，抓取一帧YUV画面
+			linux_v4l2_get_fream(FreamBuffer *freambuf);
+				typedef struct Fream_Buffer
+				{
+					char buf[1843200];
+					int length;
+					
+				}FreamBuffer;
+		（4）调用转换函数
+			uint8_t *YUYV_To_RGB24(uint8_t *yuyv_in,uint32_t w,uint32_t h)
+			return：RGB24的数据空间，每次使用完，都需要free掉
+			
+		（5）将RGB24显示到LCD之上
+			lcd_draw_bmp_for_buf(uint32_t x,uint32_t y,uint8_t *pbmp_data,uint32_t w,uint32_t h)
+		}
+	
+		（6）停止摄像头捕捉功能
+			linux_v4l2_stop_capturing();
+			
+		（7）解除初始化
+			linux_v4l2_device_uinit();
+			
+	结束残留程序：
+		ps
+		kill -9 iot对应的进程号
+		
+		test1.c：使用触摸屏（while） + 线程 +摄像头（while），实现对摄像头采集的控制
+			开始，实时显示画面
+			暂停
+			继续
+			返回
+			
+		pro1.c：将摄像头综合到原有的框架当中。
+		
+		
+		
